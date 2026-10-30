@@ -57,7 +57,6 @@ export async function getVideo(req, res, next) {
 			{ upsert: true },
 		);
 
-
 		res.json(await prepareVideo(video, load));
 	} catch (error) {
 		next(error);
@@ -67,7 +66,7 @@ export async function getVideo(req, res, next) {
 // Crea un vídeo tras comprobar que su autor existe
 export async function createVideo(req, res, next) {
 	try {
-		const { title, description, thumbnail, url, publishedAt, kidsFriendly, user } = req.body;
+		const { title, description, thumbnail, url, kidsFriendly, user } = req.body;
 		const userCheck = await User.findById(req.body.user);
 		if (!userCheck) return res.status(404).json({ error: "User not found to create a video" });
 		const video = await Video.create({
@@ -75,7 +74,6 @@ export async function createVideo(req, res, next) {
 			description,
 			thumbnail,
 			url,
-			publishedAt,
 			kidsFriendly,
 			user,
 		});
@@ -88,9 +86,9 @@ export async function createVideo(req, res, next) {
 // Modifica un vídeo sin poder cambiar su autor
 export async function updateVideo(req, res, next) {
 	try {
-		const { title, description, thumbnail, url, publishedAt, kidsFriendly } = req.body;
+		const { title, description, thumbnail, url, kidsFriendly } = req.body;
 
-		const newVideo = { title, description, thumbnail, url, publishedAt, kidsFriendly };
+		const newVideo = { title, description, thumbnail, url, kidsFriendly };
 
 		const video = await Video.findByIdAndUpdate(req.params.id, newVideo, {
 			returnDocument: "after",
