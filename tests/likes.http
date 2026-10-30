@@ -1,0 +1,242 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+@friendlyVideoId = {{friendlyVideo.response.body.$._id}}
+@restrictedVideoId = {{restrictedVideo.response.body.$._id}}
+@friendlyCommentId = {{friendlyComment.response.body.$._id}}
+@friendlyComment2Id = {{friendlyComment2.response.body.$._id}}
+@restrictedCommentId = {{restrictedComment.response.body.$._id}}
+@likeId = {{like.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### Setup: create video friendlyVideo
+# @name friendlyVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video friendlyVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{adultId}}"
+}
+
+### Setup: create video restrictedVideo
+# @name restrictedVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video restrictedVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": false,
+  "user": "{{adultId}}"
+}
+
+### Setup: create comment friendlyComment
+# @name friendlyComment
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment friendlyComment",
+  "video": "{{friendlyVideoId}}"
+}
+
+### Setup: create comment friendlyComment2
+# @name friendlyComment2
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment friendlyComment2",
+  "video": "{{friendlyVideoId}}"
+}
+
+### Setup: create comment restrictedComment
+# @name restrictedComment
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment restrictedComment",
+  "video": "{{restrictedVideoId}}"
+}
+
+### Like a video -> 201
+# @name like
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### ERROR: same like again -> 409
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### Like a comment -> 201
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "comment": "{{friendlyCommentId}}"
+}
+
+### Same user likes ANOTHER comment -> 201
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "comment": "{{friendlyComment2Id}}"
+}
+
+### ERROR: video and comment at once -> 400
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}",
+  "comment": "{{friendlyCommentId}}"
+}
+
+### ERROR: neither video nor comment -> 400
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{}
+
+### ERROR: made-up video -> 404
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: made-up comment -> 404
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "comment": "507f1f77bcf86cd799439011"
+}
+
+### Minor likes restricted video -> 403
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "video": "{{restrictedVideoId}}"
+}
+
+### Minor likes comment on restricted video -> 403
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "comment": "{{restrictedCommentId}}"
+}
+
+### Minor likes kids-friendly video -> 201
+POST {{host}}/likes
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### Check counters: video and comment likesCount
+GET {{host}}/comments/{{friendlyCommentId}}
+x-user-id: {{adultId}}
+
+### List likes -> 200
+GET {{host}}/likes
+x-user-id: {{adultId}}
+
+### Like by id -> 200
+GET {{host}}/likes/{{likeId}}
+x-user-id: {{adultId}}
+
+### ERROR: invalid id -> 400
+GET {{host}}/likes/abc
+x-user-id: {{adultId}}
+
+### Change the like from video to comment -> 200, video goes away
+PUT {{host}}/likes/{{likeId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "comment": "{{friendlyComment2Id}}"
+}
+
+### ERROR: PUT with video and comment at once -> 400
+PUT {{host}}/likes/{{likeId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}",
+  "comment": "{{friendlyCommentId}}"
+}
+
+### Delete like -> 204
+DELETE {{host}}/likes/{{likeId}}
+x-user-id: {{adultId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/likes/{{likeId}}
+x-user-id: {{adultId}}

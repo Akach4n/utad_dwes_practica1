@@ -1,0 +1,177 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@otherId = {{other.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+@friendlyVideoId = {{friendlyVideo.response.body.$._id}}
+@restrictedVideoId = {{restrictedVideo.response.body.$._id}}
+@viewId = {{view.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user other
+# @name other
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "other-{{$guid}}",
+  "fullName": "other user",
+  "email": "other-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "1998-03-03"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### Setup: create video friendlyVideo
+# @name friendlyVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video friendlyVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{adultId}}"
+}
+
+### Setup: create video restrictedVideo
+# @name restrictedVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video restrictedVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": false,
+  "user": "{{adultId}}"
+}
+
+### Create view manually -> 201 (day at 00:00)
+# @name view
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### ERROR: same view on the same day -> 409
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### Another user, same video -> 201
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{otherId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### ERROR: made-up video -> 404
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: no video -> 400
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{}
+
+### Minor tries to watch restricted video -> 403
+POST {{host}}/views
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "video": "{{restrictedVideoId}}"
+}
+
+### AUTOMATIC view: requesting a video creates a view (the first time)
+GET {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}
+
+### Request it again on the same day -> still ONE view (viewsCount does not go up)
+GET {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}
+
+### List views -> 200
+GET {{host}}/views
+x-user-id: {{adultId}}
+
+### View by id -> 200
+GET {{host}}/views/{{viewId}}
+x-user-id: {{adultId}}
+
+### ERROR: invalid id -> 400
+GET {{host}}/views/abc
+x-user-id: {{adultId}}
+
+### Update the day -> 200
+PUT {{host}}/views/{{viewId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "day": "2026-10-01"
+}
+
+### ERROR: invalid day -> 400
+PUT {{host}}/views/{{viewId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "day": "hello"
+}
+
+### Delete view -> 204
+DELETE {{host}}/views/{{viewId}}
+x-user-id: {{adultId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/views/{{viewId}}
+x-user-id: {{adultId}}

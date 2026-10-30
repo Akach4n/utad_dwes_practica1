@@ -1,0 +1,128 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@channelId = {{channel.response.body.$._id}}
+@subscriptionId = {{subscription.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user channel
+# @name channel
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "channel-{{$guid}}",
+  "fullName": "channel user",
+  "email": "channel-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "1995-01-01"
+}
+
+### Subscribe to a channel -> 201
+# @name subscription
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{adultId}}",
+  "channel": "{{channelId}}",
+  "reminder": true
+}
+
+### ERROR: same subscription again -> 409
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{adultId}}",
+  "channel": "{{channelId}}"
+}
+
+### ERROR: subscribe to yourself -> 400
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{adultId}}",
+  "channel": "{{adultId}}"
+}
+
+### ERROR: made-up channel -> 404
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{adultId}}",
+  "channel": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: made-up subscriber -> 404
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "507f1f77bcf86cd799439011",
+  "channel": "{{channelId}}"
+}
+
+### ERROR: no channel -> 400
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{adultId}}"
+}
+
+### List subscriptions -> 200 (no password)
+GET {{host}}/subscriptions
+
+### Subscription by id -> 200
+GET {{host}}/subscriptions/{{subscriptionId}}
+
+### ERROR: invalid id -> 400
+GET {{host}}/subscriptions/abc
+
+### ERROR: nonexistent id -> 404
+GET {{host}}/subscriptions/507f1f77bcf86cd799439011
+
+### Turn off the bell -> 200 (reminder false)
+PUT {{host}}/subscriptions/{{subscriptionId}}
+Content-Type: application/json
+
+{
+  "reminder": false
+}
+
+### ERROR: PUT with no reminder -> 400
+PUT {{host}}/subscriptions/{{subscriptionId}}
+Content-Type: application/json
+
+{}
+
+### PUT trying to change the channel -> 200, the channel does NOT change
+PUT {{host}}/subscriptions/{{subscriptionId}}
+Content-Type: application/json
+
+{
+  "reminder": true,
+  "channel": "507f1f77bcf86cd799439011"
+}
+
+### Delete subscription -> 204
+DELETE {{host}}/subscriptions/{{subscriptionId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/subscriptions/{{subscriptionId}}

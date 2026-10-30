@@ -1,0 +1,233 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+@friendlyVideoId = {{friendlyVideo.response.body.$._id}}
+@restrictedVideoId = {{restrictedVideo.response.body.$._id}}
+@otherVideoId = {{otherVideo.response.body.$._id}}
+@rootId = {{root.response.body.$._id}}
+@replyId = {{reply.response.body.$._id}}
+@subreplyId = {{subreply.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### Setup: create video friendlyVideo
+# @name friendlyVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video friendlyVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{adultId}}"
+}
+
+### Setup: create video restrictedVideo
+# @name restrictedVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video restrictedVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": false,
+  "user": "{{adultId}}"
+}
+
+### Setup: create video otherVideo
+# @name otherVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video otherVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{adultId}}"
+}
+
+### Setup: create comment root
+# @name root
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Root comment",
+  "video": "{{friendlyVideoId}}"
+}
+
+### Setup: create comment reply
+# @name reply
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Reply comment",
+  "video": "{{friendlyVideoId}}",
+  "parent": "{{rootId}}"
+}
+
+### Setup: create comment subreply
+# @name subreply
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Subreply comment",
+  "video": "{{friendlyVideoId}}",
+  "parent": "{{replyId}}"
+}
+
+### ERROR: made-up video -> 404
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment",
+  "video": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: made-up parent -> 404
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment",
+  "video": "{{friendlyVideoId}}",
+  "parent": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: parent from another video -> 400
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Comment",
+  "video": "{{otherVideoId}}",
+  "parent": "{{rootId}}"
+}
+
+### ERROR: no text -> 400
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "video": "{{friendlyVideoId}}"
+}
+
+### Minor comments on restricted video -> 403
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "text": "Comment",
+  "video": "{{restrictedVideoId}}"
+}
+
+### Minor comments on kids-friendly video -> 201
+POST {{host}}/comments
+Content-Type: application/json
+x-user-id: {{minorId}}
+
+{
+  "text": "Minor's comment",
+  "video": "{{friendlyVideoId}}"
+}
+
+### List comments -> 200 (with likesCount)
+GET {{host}}/comments
+x-user-id: {{adultId}}
+
+### Comment by id (lazy) -> no replies
+GET {{host}}/comments/{{rootId}}
+x-user-id: {{adultId}}
+
+### Comment by id with load=full -> nested replies
+GET {{host}}/comments/{{rootId}}?load=full
+x-user-id: {{adultId}}
+
+### List with load=full -> 200
+GET {{host}}/comments?load=full
+x-user-id: {{adultId}}
+
+### ERROR: invalid load -> 400
+GET {{host}}/comments?load=whatever
+x-user-id: {{adultId}}
+
+### ERROR: invalid id -> 400
+GET {{host}}/comments/abc
+x-user-id: {{adultId}}
+
+### ERROR: nonexistent id -> 404
+GET {{host}}/comments/507f1f77bcf86cd799439011
+x-user-id: {{adultId}}
+
+### Update text -> 200
+PUT {{host}}/comments/{{rootId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Updated text"
+}
+
+### Update trying to change the video -> 200, the video does NOT change
+PUT {{host}}/comments/{{rootId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "text": "Other text",
+  "video": "{{otherVideoId}}"
+}
+
+### Delete comment -> 204
+DELETE {{host}}/comments/{{subreplyId}}
+x-user-id: {{adultId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/comments/{{subreplyId}}
+x-user-id: {{adultId}}

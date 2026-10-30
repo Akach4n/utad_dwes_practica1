@@ -1,0 +1,160 @@
+@host = http://localhost:3000
+@viewerId = {{viewer.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+@creator1Id = {{creator1.response.body.$._id}}
+@creator2Id = {{creator2.response.body.$._id}}
+@video1Id = {{video1.response.body.$._id}}
+@video1RestrictedId = {{video1Restricted.response.body.$._id}}
+@video2Id = {{video2.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user viewer
+# @name viewer
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "viewer-{{$guid}}",
+  "fullName": "viewer user",
+  "email": "viewer-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### Setup: create user creator1
+# @name creator1
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "creator1-{{$guid}}",
+  "fullName": "creator1 user",
+  "email": "creator1-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "1995-01-01"
+}
+
+### Setup: create user creator2
+# @name creator2
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "creator2-{{$guid}}",
+  "fullName": "creator2 user",
+  "email": "creator2-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "1996-02-02"
+}
+
+### Setup: create video video1
+# @name video1
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{creator1Id}}
+
+{
+  "title": "Video video1",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{creator1Id}}"
+}
+
+### Setup: create video video1Restricted
+# @name video1Restricted
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{creator1Id}}
+
+{
+  "title": "Video video1Restricted",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": false,
+  "user": "{{creator1Id}}"
+}
+
+### Setup: create video video2
+# @name video2
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{creator2Id}}
+
+{
+  "title": "Video video2",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{creator2Id}}"
+}
+
+### Setup: the viewer subscribes ONLY to creator1
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{viewerId}}",
+  "channel": "{{creator1Id}}"
+}
+
+### Setup: the minor also subscribes to creator1
+POST {{host}}/subscriptions
+Content-Type: application/json
+
+{
+  "subscriber": "{{minorId}}",
+  "channel": "{{creator1Id}}"
+}
+
+### sub=false -> all videos, newest first
+GET {{host}}/feed?sub=false
+x-user-id: {{viewerId}}
+
+### sub=true -> only creator1's videos
+GET {{host}}/feed?sub=true
+x-user-id: {{viewerId}}
+
+### sub=true with no subscriptions (creator2 follows nobody) -> []
+GET {{host}}/feed?sub=true
+x-user-id: {{creator2Id}}
+
+### sub=false as MINOR -> no restricted videos
+GET {{host}}/feed?sub=false
+x-user-id: {{minorId}}
+
+### sub=true as MINOR -> only creator1's kids-friendly videos
+GET {{host}}/feed?sub=true
+x-user-id: {{minorId}}
+
+### ERROR: invalid sub -> 400
+GET {{host}}/feed?sub=hello
+x-user-id: {{viewerId}}
+
+### ERROR: no sub -> 400
+GET {{host}}/feed
+x-user-id: {{viewerId}}
+
+### ERROR: no header -> 400
+GET {{host}}/feed?sub=false
+
+### ERROR: only GET is allowed -> 404
+POST {{host}}/feed?sub=false
+x-user-id: {{viewerId}}

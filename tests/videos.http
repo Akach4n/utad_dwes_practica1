@@ -1,0 +1,170 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+@friendlyVideoId = {{friendlyVideo.response.body.$._id}}
+@restrictedVideoId = {{restrictedVideo.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### Setup: create video friendlyVideo
+# @name friendlyVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video friendlyVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": true,
+  "user": "{{adultId}}"
+}
+
+### Setup: create video restrictedVideo
+# @name restrictedVideo
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Video restrictedVideo",
+  "description": "Test description",
+  "thumbnail": "https://picsum.photos/300",
+  "url": "https://example.com/video.mp4",
+  "kidsFriendly": false,
+  "user": "{{adultId}}"
+}
+
+### ERROR: made-up author -> 404
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Orphan video",
+  "url": "https://example.com/video.mp4",
+  "user": "507f1f77bcf86cd799439011"
+}
+
+### ERROR: no title -> 400
+POST {{host}}/videos
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "url": "https://example.com/video.mp4",
+  "user": "{{adultId}}"
+}
+
+### ERROR: no x-user-id header -> 400
+GET {{host}}/videos
+
+### ERROR: header with invalid format -> 400
+GET {{host}}/videos
+x-user-id: abc
+
+### ERROR: header with nonexistent user -> 404
+GET {{host}}/videos
+x-user-id: 507f1f77bcf86cd799439011
+
+### List as ADULT -> 200, both videos
+GET {{host}}/videos
+x-user-id: {{adultId}}
+
+### List as MINOR -> 200, only the kids-friendly one
+GET {{host}}/videos
+x-user-id: {{minorId}}
+
+### Kids-friendly video as minor -> 200
+GET {{host}}/videos/{{friendlyVideoId}}
+x-user-id: {{minorId}}
+
+### Restricted video as minor -> 403
+GET {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{minorId}}
+
+### Restricted video as adult -> 200 (with counters)
+GET {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}
+
+### Same video again on the same day -> viewsCount does not go up
+GET {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}
+
+### load=lazy -> no comments
+GET {{host}}/videos/{{friendlyVideoId}}?load=lazy
+x-user-id: {{adultId}}
+
+### load=full -> with comments
+GET {{host}}/videos/{{friendlyVideoId}}?load=full
+x-user-id: {{adultId}}
+
+### List with load=full -> 200
+GET {{host}}/videos?load=full
+x-user-id: {{adultId}}
+
+### ERROR: invalid load -> 400
+GET {{host}}/videos?load=whatever
+x-user-id: {{adultId}}
+
+### ERROR: invalid id -> 400
+GET {{host}}/videos/abc
+x-user-id: {{adultId}}
+
+### ERROR: nonexistent id -> 404
+GET {{host}}/videos/507f1f77bcf86cd799439011
+x-user-id: {{adultId}}
+
+### Update trying to change the author -> 200, the author does NOT change
+PUT {{host}}/videos/{{friendlyVideoId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "New title",
+  "user": "507f1f77bcf86cd799439011"
+}
+
+### Update only the title -> 200, the rest is kept
+PUT {{host}}/videos/{{friendlyVideoId}}
+Content-Type: application/json
+x-user-id: {{adultId}}
+
+{
+  "title": "Only the title changes"
+}
+
+### Delete video -> 204
+DELETE {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/videos/{{restrictedVideoId}}
+x-user-id: {{adultId}}

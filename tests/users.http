@@ -1,0 +1,78 @@
+@host = http://localhost:3000
+@adultId = {{adult.response.body.$._id}}
+@minorId = {{minor.response.body.$._id}}
+
+# Run the 'Setup' blocks first, in order. Then run any test.
+
+### Setup: create user adult
+# @name adult
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "adult-{{$guid}}",
+  "fullName": "adult user",
+  "email": "adult-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### Setup: create user minor
+# @name minor
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "minor-{{$guid}}",
+  "fullName": "minor user",
+  "email": "minor-{{$guid}}@test.com",
+  "password": "1234",
+  "birthDate": "2015-03-01"
+}
+
+### List users -> 200
+GET {{host}}/users
+
+### Get user by id -> 200
+GET {{host}}/users/{{adultId}}
+
+### Update user -> 200
+PUT {{host}}/users/{{adultId}}
+Content-Type: application/json
+
+{
+  "fullName": "Updated Name"
+}
+
+### ERROR: duplicated email -> 409
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "other-{{$guid}}",
+  "email": "{{adult.response.body.$.email}}",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### ERROR: no email -> 400
+POST {{host}}/users
+Content-Type: application/json
+
+{
+  "userName": "noemail-{{$guid}}",
+  "password": "1234",
+  "birthDate": "2000-05-10"
+}
+
+### ERROR: invalid id -> 400
+GET {{host}}/users/abc
+
+### ERROR: nonexistent id -> 404
+GET {{host}}/users/507f1f77bcf86cd799439011
+
+### Delete user (the minor) -> 204
+DELETE {{host}}/users/{{minorId}}
+
+### ERROR: delete again -> 404
+DELETE {{host}}/users/{{minorId}}
