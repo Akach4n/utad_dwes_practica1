@@ -1,0 +1,19 @@
+{
+  "name": "red-social",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "dev": "node --env-file=.env --watch app.js",
+    "start": "node --env-file=.env app.js"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.0.0",
+    "mongoose": "^9.0.0"
+  }
+}
